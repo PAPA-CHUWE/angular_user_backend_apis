@@ -13,7 +13,7 @@ app.use(urlencoded({ extended: true }));
 app.use("/api/users", userRoutes);
 
 // Health check route or API description
-app.get('/api/users', (req, res) => {
+app.get('/', (req, res) => {
   res.status(200).json({ message: '🧑‍💼 User Management API is working' });
 });
 
