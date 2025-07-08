@@ -1,66 +1,40 @@
+// routes/users.js
 import { Router } from 'express';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import User from '../model/User.js';
 
 const router = Router();
 
-// Fix __dirname in ES module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Correct path to Users.json
-const USERS_FILE = path.join(__dirname, '..', 'db', 'Users.json');
-
-// Utility: read users from file
-const readUsers = () => {
-  if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, '[]');
-  const data = fs.readFileSync(USERS_FILE, 'utf8');
-  return JSON.parse(data || '[]');
-};
-
-// Utility: write users to file
-const writeUsers = (users) => {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-};
-
-// CREATE
-router.post('/create-user', (req, res) => {
+// ✅ CREATE USER
+router.post('/create-user', async (req, res) => {
   try {
-    const users = readUsers();
     const { email } = req.body;
 
-    // Check if email already exists
-    const existingUser = users.find(user => user.email.toLowerCase() === email.toLowerCase());
-    if (existingUser) {
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing) {
       return res.status(409).json({ message: 'Email already exists' });
     }
 
-    const newUser = { ...req.body, id: Date.now().toString() };
-    users.push(newUser);
-    writeUsers(users);
+    const newUser = await User.create(req.body);
     res.status(200).json({ message: 'User saved successfully', user: newUser });
   } catch (err) {
     res.status(500).json({ message: 'Failed to create user', error: err.message });
   }
 });
 
-
-// READ ALL
-router.get('/all-users', (req, res) => {
+// ✅ FETCH ALL USERS
+router.post('/fetch-users', async (req, res) => {
   try {
-    const users = readUsers();
+    const users = await User.find();
     res.json(users);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to read users', error: err.message });
+    res.status(500).json({ message: 'Failed to fetch users', error: err.message });
   }
 });
 
-// READ ONE
-router.get('/user/:id', (req, res) => {
+// ✅ FETCH ONE
+router.get('/user/:id', async (req, res) => {
   try {
-    const users = readUsers();
-    const user = users.find(u => u.id === req.params.id);
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (err) {
@@ -68,31 +42,22 @@ router.get('/user/:id', (req, res) => {
   }
 });
 
-// UPDATE
-router.put('/update-user/:id', (req, res) => {
+// ✅ UPDATE
+router.put('/update-user/:id', async (req, res) => {
   try {
-    const users = readUsers();
-    const index = users.findIndex(u => u.id === req.params.id);
-    if (index === -1) return res.status(404).json({ message: 'User not found' });
-
-    users[index] = { ...users[index], ...req.body };
-    writeUsers(users);
-    res.json({ message: 'User updated successfully', user: users[index] });
+    const updated = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updated) return res.status(404).json({ message: 'User not found' });
+    res.json({ message: 'User updated successfully', user: updated });
   } catch (err) {
     res.status(500).json({ message: 'Failed to update user', error: err.message });
   }
 });
 
-// DELETE
-router.delete('/delete-user/:id', (req, res) => {
+// ✅ DELETE
+router.delete('/delete-user/:id', async (req, res) => {
   try {
-    const users = readUsers();
-    const updatedUsers = users.filter(u => u.id !== req.params.id);
-    if (users.length === updatedUsers.length) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    writeUsers(updatedUsers);
+    const deleted = await User.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'User not found' });
     res.json({ message: 'User deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to delete user', error: err.message });
